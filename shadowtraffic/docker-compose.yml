@@ -1,0 +1,23 @@
+services:
+  shadowtraffic:
+    image: shadowtraffic/shadowtraffic:latest
+    container_name: estuary-cdc-shadowtraffic
+    restart: unless-stopped
+    entrypoint:
+      ["java", "-Djava.security.manager=allow", "-Dfile.encoding=UTF-8",
+       "-Dsun.stdout.encoding=UTF-8", "-Dsun.stderr.encoding=UTF-8",
+       "-jar", "/home/shadowtraffic.jar"]
+    command: ["--config", "/workspace/shadowtraffic.json"]
+    volumes:
+      - ./shadowtraffic.json:/workspace/shadowtraffic.json:ro
+    # ShadowTraffic license variables (LICENSE_ID, LICENSE_KEY, etc.) live here.
+    env_file:
+      - ./license.env
+    # Postgres connection values are exported by scripts/start.sh (from the
+    # Terraform outputs) and interpolated here at `docker compose up` time.
+    environment:
+      PGHOST: ${PGHOST:?set PGHOST (run via scripts/start.sh)}
+      PGPORT: ${PGPORT:-5432}
+      PGDATABASE: ${PGDATABASE:?set PGDATABASE}
+      PGUSER: ${PGUSER:?set PGUSER}
+      PGPASSWORD: ${PGPASSWORD:?set PGPASSWORD}

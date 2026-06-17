@@ -1,0 +1,161 @@
+{
+  "connections": {
+    "pg": {
+      "kind": "postgres",
+      "tablePolicy": "manual",
+      "connectionConfigs": {
+        "host": { "_gen": "env", "var": "PGHOST" },
+        "port": { "_gen": "env", "var": "PGPORT", "as": "integer" },
+        "username": { "_gen": "env", "var": "PGUSER" },
+        "password": { "_gen": "env", "var": "PGPASSWORD", "mask": true },
+        "db": { "_gen": "env", "var": "PGDATABASE" }
+      },
+      "batchConfigs": {
+        "lingerMs": 200,
+        "batchRows": 100
+      }
+    }
+  },
+
+  "generators": [
+    {
+      "name": "customers-insert",
+      "connection": "pg",
+      "table": "customers",
+      "row": {
+        "customer_id": { "_gen": "uuid" },
+        "name": { "_gen": "string", "expr": "#{Name.fullName}" },
+        "email": { "_gen": "string", "expr": "#{Internet.emailAddress}" },
+        "created_at": { "_gen": "now", "serialize": { "type": "postgresTimestamp" } }
+      },
+      "localConfigs": { "throttleMs": 500 }
+    },
+
+    {
+      "name": "transactions-insert",
+      "connection": "pg",
+      "table": "transactions",
+      "row": {
+        "transaction_id": { "_gen": "uuid" },
+        "customer_id": {
+          "_gen": "lookup",
+          "name": "customers-insert",
+          "path": ["row", "customer_id"]
+        },
+        "amount": {
+          "_gen": "uniformDistribution",
+          "bounds": [5, 500],
+          "decimals": 2
+        },
+        "status": {
+          "_gen": "weightedOneOf",
+          "choices": [
+            { "weight": 80, "value": "pending" },
+            { "weight": 15, "value": "authorized" },
+            { "weight": 5, "value": "failed" }
+          ]
+        },
+        "created_at": { "_gen": "now", "serialize": { "type": "postgresTimestamp" } }
+      },
+      "localConfigs": { "throttleMs": 350 }
+    },
+
+    {
+      "name": "shipments-insert",
+      "connection": "pg",
+      "table": "shipments",
+      "row": {
+        "shipment_id": { "_gen": "uuid" },
+        "transaction_id": {
+          "_gen": "lookup",
+          "name": "transactions-insert",
+          "path": ["row", "transaction_id"]
+        },
+        "address": { "_gen": "string", "expr": "#{Address.fullAddress}" },
+        "status": {
+          "_gen": "weightedOneOf",
+          "choices": [
+            { "weight": 70, "value": "preparing" },
+            { "weight": 25, "value": "shipped" },
+            { "weight": 5, "value": "delivered" }
+          ]
+        },
+        "updated_at": { "_gen": "now", "serialize": { "type": "postgresTimestamp" } }
+      },
+      "localConfigs": { "throttleMs": 500 }
+    },
+
+    {
+      "name": "transactions-update",
+      "connection": "pg",
+      "table": "transactions",
+      "op": "update",
+      "where": {
+        "transaction_id": {
+          "_gen": "lookup",
+          "name": "transactions-insert",
+          "path": ["row", "transaction_id"]
+        }
+      },
+      "row": {
+        "status": {
+          "_gen": "oneOf",
+          "choices": ["captured", "refunded", "settled"]
+        }
+      },
+      "localConfigs": { "throttleMs": 3000 }
+    },
+
+    {
+      "name": "shipments-update",
+      "connection": "pg",
+      "table": "shipments",
+      "op": "update",
+      "where": {
+        "shipment_id": {
+          "_gen": "lookup",
+          "name": "shipments-insert",
+          "path": ["row", "shipment_id"]
+        }
+      },
+      "row": {
+        "status": {
+          "_gen": "oneOf",
+          "choices": ["shipped", "in_transit", "delivered"]
+        },
+        "updated_at": { "_gen": "now", "serialize": { "type": "postgresTimestamp" } }
+      },
+      "localConfigs": { "throttleMs": 3000 }
+    }
+  ],
+
+  "schedule": {
+    "stages": [
+      {
+        "generators": ["customers-insert"],
+        "overrides": {
+          "customers-insert": {
+            "localConfigs": { "maxEvents": 50, "throttleMs": 0 }
+          }
+        }
+      },
+      {
+        "generators": ["transactions-insert"],
+        "overrides": {
+          "transactions-insert": {
+            "localConfigs": { "maxEvents": 100, "throttleMs": 0 }
+          }
+        }
+      },
+      {
+        "generators": [
+          "customers-insert",
+          "transactions-insert",
+          "shipments-insert",
+          "transactions-update",
+          "shipments-update"
+        ]
+      }
+    ]
+  }
+}

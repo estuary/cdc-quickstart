@@ -1,0 +1,148 @@
+# Estuary Flow catalog: Postgres CDC capture -> 3 collections -> Snowflake.
+#
+# This is a TEMPLATE. scripts/start.sh renders the ${...} placeholders with
+# `envsubst` into flowctl/flow.generated.yaml (git-ignored), then publishes
+# that file with `flowctl catalog publish`. flowctl itself does not interpolate
+# environment variables, which is why we render first.
+#
+# ${ESTUARY_PREFIX} is your tenant prefix + a demo namespace, e.g.
+#   acmeCo/estuary-cdc-demo
+
+captures:
+  ${ESTUARY_PREFIX}/source-postgres:
+    endpoint:
+      connector:
+        image: ghcr.io/estuary/source-postgres:v3
+        config:
+          address: "${PGHOST}:${PGPORT}"
+          database: "${PGDATABASE}"
+          user: "${PGUSER}"
+          credentials:
+            auth_type: UserPassword
+            password: "${PGPASSWORD}"
+          # Required by recent source-postgres versions. false = standard CDC
+          # (each row keyed by its PK); true = append every change as history.
+          historyMode: false
+          advanced:
+            # Created up-front by scripts/sql/setup.sql.
+            publicationName: flow_publication
+            slotName: flow_slot
+            watermarksTable: public.flow_watermarks
+    bindings:
+      - resource:
+          stream: customers
+          namespace: public
+          mode: ""
+        target: ${ESTUARY_PREFIX}/customers
+      - resource:
+          stream: transactions
+          namespace: public
+          mode: ""
+        target: ${ESTUARY_PREFIX}/transactions
+      - resource:
+          stream: shipments
+          namespace: public
+          mode: ""
+        target: ${ESTUARY_PREFIX}/shipments
+
+collections:
+  ${ESTUARY_PREFIX}/customers:
+    key: [/customer_id]
+    schema:
+      type: object
+      properties:
+        customer_id: { type: string }
+        name: { type: string }
+        email: { type: string }
+        created_at: { type: [string, "null"], format: date-time }
+        _meta:
+          type: object
+          properties:
+            op: { type: string, enum: [c, u, d] }
+      required: [customer_id]
+
+  ${ESTUARY_PREFIX}/transactions:
+    key: [/transaction_id]
+    schema:
+      type: object
+      properties:
+        transaction_id: { type: string }
+        customer_id: { type: [string, "null"] }
+        # Postgres numeric/decimal is captured as a STRING by source-postgres to
+        # preserve precision; format:number keeps it numeric downstream (Snowflake).
+        amount: { type: [string, "null"], format: number }
+        status: { type: [string, "null"] }
+        created_at: { type: [string, "null"], format: date-time }
+        _meta:
+          type: object
+          properties:
+            op: { type: string, enum: [c, u, d] }
+      required: [transaction_id]
+
+  ${ESTUARY_PREFIX}/shipments:
+    key: [/shipment_id]
+    schema:
+      type: object
+      properties:
+        shipment_id: { type: string }
+        transaction_id: { type: [string, "null"] }
+        address: { type: [string, "null"] }
+        status: { type: [string, "null"] }
+        updated_at: { type: [string, "null"], format: date-time }
+        _meta:
+          type: object
+          properties:
+            op: { type: string, enum: [c, u, d] }
+      required: [shipment_id]
+
+materializations:
+  ${ESTUARY_PREFIX}/materialize-snowflake:
+    endpoint:
+      connector:
+        image: ghcr.io/estuary/materialize-snowflake:v4
+        config:
+          host: "${SNOWFLAKE_HOST}"
+          database: "${SNOWFLAKE_DATABASE}"
+          # Every table lands in this one schema so teardown is a single
+          # DROP SCHEMA ... CASCADE. Estuary provisions it automatically.
+          schema: "${SNOWFLAKE_SCHEMA}"
+          warehouse: "${SNOWFLAKE_WAREHOUSE}"
+          role: "${SNOWFLAKE_ROLE}"
+          timestamp_type: TIMESTAMP_LTZ
+          # Lowest-latency commits: push updates to Snowflake as fast as possible
+          # rather than batching on a schedule. Great for showcasing CDC latency
+          # in the demo; note it wakes the warehouse far more often (more credits)
+          # — raise syncFrequency (e.g. 5m/30m) if you'd rather batch for cost.
+          # Valid values are a fixed enum: 0s, 30s, 5m, 15m, 30m, 1h, 2h, 4h
+          # (there is no 5s — the smallest non-zero batch is 30s).
+          syncSchedule:
+            syncFrequency: 0s
+          credentials:
+            auth_type: jwt
+            user: "${SNOWFLAKE_USER}"
+            private_key: "${SNOWFLAKE_PRIVATE_KEY}"
+    bindings:
+      # delta_updates: true (append-only) avoids the merge queries that burn
+      # Snowflake credits — ideal for a free-trial account.
+      - resource:
+          table: customers
+          delta_updates: true
+        source: ${ESTUARY_PREFIX}/customers
+      - resource:
+          table: transactions
+          delta_updates: true
+        source: ${ESTUARY_PREFIX}/transactions
+      - resource:
+          table: shipments
+          delta_updates: true
+        source: ${ESTUARY_PREFIX}/shipments
+    # Shard transaction tuning. maxTxnDuration caps how long the runtime reads
+    # documents before it must commit; it DEFAULTS TO 5 MINUTES for
+    # materializations. That default — not syncFrequency — is the dominant
+    # source of end-to-end latency: even with syncFrequency: 0s the connector
+    # can sit reading for up to 5m before flushing to Snowflake (we measured
+    # bursty multi-minute lag because of it). 1s forces near-immediate commits.
+    # Trade-off: smaller, more frequent Snowflake writes — fine here given
+    # delta_updates (Snowpipe Streaming, no merge queries).
+    shards:
+      maxTxnDuration: 1s
