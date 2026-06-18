@@ -280,43 +280,6 @@ making the CDC latency easy to demo. The tradeoff is that the warehouse wakes
 frequently (more credits); to batch for cost instead, raise `syncFrequency` (e.g.
 `5m`/`30m`) in `flowctl/flow.yaml` and republish with `FORCE_PUBLISH=1 ./scripts/start.sh`.
 
-## Measure end-to-end latency
-
-Put a number on the CDC latency. `scripts/latency.sh` inserts one (or `COUNT`)
-uniquely-tagged row(s) into a single table — `public.transactions` — in one
-Postgres transaction, prints each `transaction_id` so you can follow it yourself,
-then immediately and continuously polls two downstream locations, reporting how
-long each took since the Postgres commit (t0):
-
-- **collection** — row visible in the Estuary collection (the capture leg)
-- **Snowflake** — row queryable in Snowflake (the full end-to-end path)
-
-```bash
-./scripts/latency.sh        # one row
-./scripts/latency.sh 5      # five rows committed together, with a min/avg/max summary
-```
-
-Sample output:
-```
-==> Inserted 1 row(s) into public.transactions at t0 — polling each location continuously:
-    #0 transaction_id = a91c…
-    ✓ #0   seen in collection after 3.450 s
-    ✓ #0   seen in Snowflake  after 11.210 s
-```
-
-With `COUNT > 1` you also get a `min/avg/max` summary across the rows for each
-leg. Use the printed IDs to spot-check each stage: query Postgres
-(`SELECT * FROM transactions WHERE transaction_id = '<id>'`), filter the
-collection in the Estuary dashboard's data preview, and `SELECT` in Snowflake.
-
-Requirements: `snowsql` (same as teardown), `psql`, `terraform`, `python3`,
-`flowctl`, and a running pipeline. Tunables: `LATENCY_POLL` (poll interval,
-default 1s) and `LATENCY_TIMEOUT` (give-up after, default 300s). The Snowflake
-timing is measured by a poller, so read it as an **upper bound** — it includes up
-to one poll interval plus the `snowsql` connect/query time. Probe rows are tagged
-`'__latency_probe__'`, are harmless, and are removed when you drop the schema at
-teardown.
-
 ## Teardown
 
 ```bash
