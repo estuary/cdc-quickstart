@@ -130,7 +130,7 @@ addresses"** in the Estuary dashboard (or the
 and override:
 
 ```bash
-export TF_VAR_estuary_cidrs='["34.121.207.128/32","35.226.75.135/32"]'
+export TF_VAR_estuary_cidrs='["35.226.75.135/32"]'
 ```
 
 The `PG*` variables stay blank — `start.sh` fills them from Terraform outputs.

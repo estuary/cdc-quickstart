@@ -28,7 +28,7 @@ variable "estuary_cidrs" {
     (shown under Admin -> "Allowlist IP addresses" in the dashboard;
     https://docs.estuary.dev/reference/allow-ip-addresses/) for a tighter rule.
     Override from the shell with, e.g.:
-      export TF_VAR_estuary_cidrs='["34.121.207.128/32","35.226.75.135/32"]'
+      export TF_VAR_estuary_cidrs='["35.226.75.135/32"]'
   EOT
   type        = list(string)
   # Egress IPs of the DATA PLANE your capture runs in — independent of the AWS
@@ -42,7 +42,6 @@ variable "estuary_cidrs" {
     "107.20.68.5/32",
     "98.89.112.85/32",
     # GCP us-central1 c2
-    "34.121.207.128/32",
     "35.226.75.135/32",
     # AWS us-west-2 c1
     "34.213.10.188/32",
@@ -57,7 +56,7 @@ variable "estuary_cidrs" {
 
   validation {
     condition     = alltrue([for c in var.estuary_cidrs : can(cidrhost(c, 0))])
-    error_message = "Every entry in estuary_cidrs must be a valid CIDR, e.g. 34.121.207.128/32."
+    error_message = "Every entry in estuary_cidrs must be a valid CIDR, e.g. 35.226.75.135/32."
   }
 }
 
