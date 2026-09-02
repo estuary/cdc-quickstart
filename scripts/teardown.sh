@@ -4,7 +4,7 @@
 # order of creation, so nothing is left running (and billing).
 #
 #   1. docker compose down     -> stop ShadowTraffic
-#   2. flowctl delete          -> remove Flow capture/collections/materialization
+#   2. flowctl delete          -> remove Estuary capture/collections/materialization
 #   3. DROP SCHEMA ... CASCADE  -> remove Snowflake schema + tables
 #   4. terraform destroy        -> tear down RDS Postgres
 #
@@ -54,9 +54,9 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# 2. Delete the Estuary Flow catalog
+# 2. Delete the Estuary catalog
 # ---------------------------------------------------------------------------
-step "2/4 Deleting Estuary Flow resources"
+step "2/4 Deleting Estuary resources"
 if [ -n "${ESTUARY_TOKEN:-}" ] && [ -n "${ESTUARY_PREFIX:-}" ] && command -v flowctl >/dev/null 2>&1; then
   # Pin to ESTUARY_TOKEN's identity, isolated from your default flowctl login:
   # authenticate a dedicated, per-tenant profile with the .env token and pass
@@ -92,7 +92,7 @@ if [ -n "${ESTUARY_TOKEN:-}" ] && [ -n "${ESTUARY_PREFIX:-}" ] && command -v flo
     warn "administers ('flowctl auth roles list') and re-run, or delete in the UI."
   fi
 else
-  warn "ESTUARY_TOKEN/ESTUARY_PREFIX/flowctl missing; skipping Flow cleanup."
+  warn "ESTUARY_TOKEN/ESTUARY_PREFIX/flowctl missing; skipping Estuary cleanup."
 fi
 
 # ---------------------------------------------------------------------------

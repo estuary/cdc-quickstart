@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Full startup orchestration for the Postgres -> Estuary Flow -> Snowflake
+# Full startup orchestration for the Postgres -> Estuary -> Snowflake
 # CDC demo. Idempotent and safe to re-run.
 #
 #   1. terraform apply        -> provision RDS Postgres
@@ -153,9 +153,9 @@ info "ShadowTraffic running. Tail logs with:"
 info "  docker compose -f shadowtraffic/docker-compose.yml logs -f"
 
 # ---------------------------------------------------------------------------
-# 5. Deploy the Estuary Flow catalog
+# 5. Deploy the Estuary catalog
 # ---------------------------------------------------------------------------
-step "5/5 Deploying Estuary Flow catalog"
+step "5/5 Deploying Estuary catalog"
 
 # Pin flowctl to THIS token's identity for every command below.
 #
@@ -210,7 +210,7 @@ for _spec in "${EXPECTED_SPECS[@]}"; do
 done
 
 if [ "${#missing_specs[@]}" -eq 0 ] && [ "${FORCE_PUBLISH:-0}" != "1" ]; then
-  info "Flow catalog already deployed under ${ESTUARY_PREFIX}/ — all 5 specs present."
+  info "Estuary catalog already deployed under ${ESTUARY_PREFIX}/ — all 5 specs present."
   info "Skipping publish so the running pipeline isn't disturbed (FORCE_PUBLISH=1 to republish)."
 else
   if [ "${#missing_specs[@]}" -gt 0 ]; then
@@ -248,7 +248,7 @@ step "Done."
 cat <<EOF
 
 The pipeline is live:
-  Postgres (RDS) --CDC--> Estuary Flow --delta-updates--> Snowflake
+  Postgres (RDS) --CDC--> Estuary --delta-updates--> Snowflake
 
 Collection storage  (OPTIONAL later lab exercise — the demo already works on
 Estuary's default managed storage, so nothing here is required now):
