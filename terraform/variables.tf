@@ -22,7 +22,7 @@ variable "allowed_cidr" {
 
 variable "estuary_cidrs" {
   description = <<-EOT
-    Estuary Flow data-plane egress IPs that must reach Postgres for the CDC
+    Estuary data-plane egress IPs that must reach Postgres for the CDC
     capture to connect. These are separate from your own IP. The default covers
     all of Estuary's public data planes; trim to just your tenant's data plane
     (shown under Admin -> "Allowlist IP addresses" in the dashboard;

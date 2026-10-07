@@ -1,8 +1,8 @@
-# Estuary CDC Demo — Postgres → Estuary Flow → Snowflake
+# Estuary CDC Demo — Postgres → Estuary → Snowflake
 
 A self-contained, one-command demo of real-time change data capture. Terraform
 stands up an RDS Postgres instance, ShadowTraffic streams realistic inserts and
-updates into it, Estuary Flow captures the changes via logical replication, and
+updates into it, Estuary captures the changes via logical replication, and
 a Snowflake materialization lands them in append-only tables.
 
 Everything spins up with `./scripts/start.sh` and tears down cleanly with
@@ -31,7 +31,7 @@ Everything spins up with `./scripts/start.sh` and tears down cleanly with
                      │  slot: flow_slot · pub: flow_publication
                      ▼
   ┌────────────────────────────────────┐
-  │ Estuary Flow                       │
+  │ Estuary                            │
   │   source-postgres  (capture)       │
   │         │                          │
   │         ▼                          │
@@ -92,7 +92,7 @@ Accounts:
 
 - **AWS** — any account; the instance is free-tier eligible (`db.t3.micro`, 20 GB).
 - **ShadowTraffic** — free license from https://shadowtraffic.io/pricing.html
-- **Estuary Flow** — https://dashboard.estuary.dev (note your tenant prefix).
+- **Estuary** — https://dashboard.estuary.dev (note your tenant prefix).
 - **Snowflake** — a trial account works; this demo uses an X-SMALL warehouse.
 
 ## First-time setup
@@ -221,9 +221,9 @@ CREATE WAREHOUSE IF NOT EXISTS <SNOWFLAKE_WAREHOUSE>
 ```
 
 This runs Terraform → reads outputs → sets up Postgres CDC → starts
-ShadowTraffic → publishes the Flow catalog. Re-running it is safe (idempotent).
+ShadowTraffic → publishes the Estuary catalog. Re-running it is safe (idempotent).
 
-If the Flow capture, collections, and materialization already exist under your
+If the capture, collections, and materialization already exist under your Estuary
 prefix, `start.sh` detects them (via `flowctl catalog list`) and **skips the
 publish** so a running pipeline isn't disturbed — `flowctl` would update them in
 place anyway, never rename or recreate them. To force a republish (e.g. after
@@ -286,7 +286,7 @@ frequently (more credits); to batch for cost instead, raise `syncFrequency` (e.g
 ./scripts/teardown.sh
 ```
 
-In order: stop ShadowTraffic → delete the Flow capture/collections/materialization
+In order: stop ShadowTraffic → delete the Estuary capture/collections/materialization
 → `DROP SCHEMA IF EXISTS <DB>.<SCHEMA> CASCADE` in Snowflake (via `snowsql`) →
 `terraform destroy -auto-approve`. Steps 1–3 are best-effort so teardown always
 reaches the RDS destroy.

@@ -1,4 +1,4 @@
-# Estuary Flow catalog: Postgres CDC capture -> 3 collections -> Snowflake.
+# Estuary catalog: Postgres CDC capture -> 3 collections -> Snowflake.
 #
 # This is a TEMPLATE. scripts/start.sh renders the ${...} placeholders with
 # `envsubst` into flowctl/flow.generated.yaml (git-ignored), then publishes

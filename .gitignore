@@ -9,12 +9,12 @@ shadowtraffic/license.env
 # Claude Code working config (session permission allowlists, not project config)
 .claude/
 
-# Personal pulled Flow catalog (contains SOPS-encrypted creds + real infra IDs).
+# Personal pulled Estuary catalog (contains SOPS-encrypted creds + real infra IDs).
 # The shareable catalog template lives in flowctl/flow.yaml.
 /flow.yaml
 wassDemo/
 
-# Rendered Flow catalog (contains substituted credentials)
+# Rendered Estuary catalog (contains substituted credentials)
 flowctl/flow.generated.yaml
 
 # Terraform local state & working dir
