@@ -1,0 +1,74 @@
+==============================================================================
+DMS WORKLOAD INVENTORY: account 123456789012, region us-east-1, 2026-11-19 21:15Z
+==============================================================================
+
+==============================================================================
+1. INVENTORY
+==============================================================================
+  Replication instances : 1  (1x dms.t3.small)
+  Serverless configs    : 0
+  Tasks / replications  : 1 provisioned + 0 serverless  (full-load-and-cdc: 1)
+  Distinct source endpoints : 1  (engines: postgres)
+  Distinct target endpoints : 1  (engines: s3)
+
+==============================================================================
+2. WORKLOAD DETAIL (one block per task)
+==============================================================================
+
+------------------------------------------------------------------------------
+TASK app-db-to-s3  [running, full-load-and-cdc]
+  source: postgres app-db.xxxxxxxxxxxx.us-east-1.rds.amazonaws.com/ecommerce
+  target: s3
+  table selection rules (% matches any):
+    include  public.%
+  tables: 4   full-load rows total: 44,663,555
+  CDC changes since task (re)start 2026-11-18 22:02Z (1.0 d): 2,128,624 rows  (~2,201,266 rows/day)
+  CDC bandwidth (CloudWatch source-side, avg of last 14d): 4.6 KB/s
+    => incremental volume ~ 0.40 GB/day ~ 12 GB/month
+  CDC row rate (CloudWatch source, avg): 24.4 rows/s
+
+  SCHEMA TABLE         FULL_LOAD_ROWS      INSERTS      UPDATES      DELETES  STATE
+  public orders            26,256,844      317,358      888,727            0  Table completed
+  public shipments         13,137,356      158,679      476,027            0  Table completed
+  public customers          5,269,352       63,469      222,902            0  Table completed
+  public app_settings               3            0        1,462            0  Table completed
+
+==============================================================================
+3. DMS SPEND (Cost Explorer, unblended, by usage type)
+==============================================================================
+  (no DMS charges found in the lookback window; note that Cost Explorer
+   data lags ~24h, so resources created today won't show yet)
+
+==============================================================================
+4. SOURCE DATABASE SIZE QUERIES (run on the source database)
+==============================================================================
+DMS reports row counts only, so these read-only queries fill the gap: row
+counts, average row bytes, and average row size as a JSON document.
+Replace <schema>.<table> where present; samples read 1000 rows.
+
+postgres, all tables:
+  SELECT schemaname, relname, n_live_tup AS row_count,
+         pg_table_size(relid) / NULLIF(n_live_tup, 0) AS avg_row_bytes
+  FROM pg_stat_user_tables ORDER BY pg_table_size(relid) DESC;
+postgres, average JSON bytes per row (run per table):
+  SELECT avg(octet_length(to_jsonb(t)::text))::int AS avg_json_bytes
+  FROM (SELECT * FROM <schema>.<table> LIMIT 1000) t;
+
+Note: the JSON figures measure each row serialized as a document, which is
+how change events are sized. They exceed avg_row_bytes because column names
+repeat in every row and numbers and dates serialize as text.
+Total JSON GB ~= row_count x avg_json_bytes.
+
+==============================================================================
+5. WHAT TO SEND BACK (copy/paste these three items)
+==============================================================================
+  1. This report (the text above, also saved as ./dms-inventory-report-123456789012-us-east-1-20261119.txt).
+  2. The output of the section-4 size queries.
+  3. If section 3 printed 'Unavailable': the 'AWS Database Migration Service'
+     line from Cost Explorer, grouped by usage type, past 3 months.
+
+Caveats: CDC insert/update/delete counters reset when a task is restarted or
+a table is reloaded, so the rows/day rate covers only the period since the
+last restart.
+CloudWatch bandwidth is uncompressed wire throughput averaged over 14d,
+including idle periods; treat GB/month as an estimate to verify in a trial.

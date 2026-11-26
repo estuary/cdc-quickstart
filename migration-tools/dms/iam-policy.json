@@ -1,0 +1,40 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "DmsScopeInventory",
+      "Effect": "Allow",
+      "Action": [
+        "dms:DescribeEndpoints",
+        "dms:DescribeReplicationInstances",
+        "dms:DescribeReplicationTasks",
+        "dms:DescribeReplicationConfigs",
+        "dms:DescribeReplications",
+        "dms:DescribeTableStatistics",
+        "dms:DescribeReplicationTableStatistics"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "DmsScopeRegionDiscovery",
+      "Effect": "Allow",
+      "Action": "ec2:DescribeRegions",
+      "Resource": "*"
+    },
+    {
+      "Sid": "DmsScopeCloudWatchMetrics",
+      "Effect": "Allow",
+      "Action": [
+        "cloudwatch:ListMetrics",
+        "cloudwatch:GetMetricStatistics"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "DmsScopeSpendOptional",
+      "Effect": "Allow",
+      "Action": "ce:GetCostAndUsage",
+      "Resource": "*"
+    }
+  ]
+}

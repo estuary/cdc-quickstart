@@ -1,0 +1,24 @@
+name: lint
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: shellcheck
+        run: shellcheck */*.sh
+      - name: bash syntax
+        run: |
+          for f in */*.sh; do bash -n "$f"; done
+      - name: embedded python syntax (dms)
+        run: |
+          python3 - <<'EOF'
+          src = open('dms/dms-inventory.sh').read()
+          code = src[src.index("python3 <<'PY'") + len("python3 <<'PY'") + 1:src.rindex('PY')]
+          compile(code, 'embedded', 'exec')
+          print('embedded python OK')
+          EOF
